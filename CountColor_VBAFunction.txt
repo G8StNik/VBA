@@ -1,7 +1,7 @@
 Option Explicit
 
 Function CountColor(rng_Ref as Range, rng_Data as Range) as Long
-
+' To User formula =Countcolor(the cell where the color is located, The Range to count the color)
 Dim cell as Range
 ' Add this to make the function update when sheet is recalculated
 Application.Volatile
