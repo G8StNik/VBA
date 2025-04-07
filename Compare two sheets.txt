@@ -1,0 +1,220 @@
+Sub CompareColumns()
+    Dim wsSource As Worksheet
+    Dim wsComparison As Worksheet
+    Dim wsResults As Worksheet
+    Dim colSource As Range
+    Dim colComparison As Range
+    Dim sourceRow As Range
+    Dim comparisonRow As Range
+    Dim uniqueColIndexSource As Integer
+    Dim uniqueColIndexComparison As Integer
+    Dim matchFound As Boolean
+    Dim lastRowSource As Long
+    Dim lastRowComparison As Long
+    Dim startTime As Date
+    Dim endTime As Date
+    Dim totalTimeTaken As Double
+    Dim redHighlights As Integer
+    Dim greenFonts As Integer
+    Dim columnsCompared As Integer
+    Dim sourceSheetName As String
+    Dim comparisonSheetName As String
+    Dim uniqueColumn As String
+    Dim resultsRow As Long
+
+    ' Prompt user to input the names of the sheets
+    sourceSheetName = InputBox("Please enter the name of the Source sheet:", "Source Sheet Name")
+    comparisonSheetName = InputBox("Please enter the name of the Comparison sheet:", "Comparison Sheet Name")
+    
+    ' Set worksheets with error handling
+    On Error Resume Next
+    Set wsSource = ThisWorkbook.Sheets(sourceSheetName) ' Source sheet
+    Set wsComparison = ThisWorkbook.Sheets(comparisonSheetName) ' Comparison sheet
+    On Error GoTo 0
+
+    If wsSource Is Nothing Then
+        MsgBox "Source sheet '" & sourceSheetName & "' not found. Please check the sheet name.", vbExclamation, "Error"
+        Exit Sub
+    End If
+
+    If wsComparison Is Nothing Then
+        MsgBox "Comparison sheet '" & comparisonSheetName & "' not found. Please check the sheet name.", vbExclamation, "Error"
+        Exit Sub
+    End If
+
+    ' Prompt user to input the name of the unique column to match
+    uniqueColumn = InputBox("Please enter the name of the column to match on both sheets:", "Unique Column Name")
+
+    ' Find the unique column in both sheets
+    On Error Resume Next
+    uniqueColIndexSource = wsSource.Rows(1).Find(What:=uniqueColumn, LookIn:=xlValues, LookAt:=xlWhole).Column
+    uniqueColIndexComparison = wsComparison.Rows(1).Find(What:=uniqueColumn, LookIn:=xlValues, LookAt:=xlWhole).Column
+    On Error GoTo 0
+
+    If uniqueColIndexSource = 0 Or uniqueColIndexComparison = 0 Then
+        MsgBox "The column '" & uniqueColumn & "' was not found in one or both sheets.", vbExclamation, "Error"
+        Exit Sub
+    End If
+
+    ' Start timer
+    startTime = Now
+
+    ' Initialize counters
+    redHighlights = 0
+    greenFonts = 0
+    columnsCompared = 0
+
+    ' Find the last row in both sheets
+    lastRowSource = wsSource.Cells(wsSource.Rows.Count, uniqueColIndexSource).End(xlUp).Row
+    lastRowComparison = wsComparison.Cells(wsComparison.Rows.Count, uniqueColIndexComparison).End(xlUp).Row
+
+    ' Create a new sheet for results
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    Set wsResults = ThisWorkbook.Sheets("Results")
+    If Not wsResults Is Nothing Then wsResults.Delete
+    Application.DisplayAlerts = True
+    On Error GoTo 0
+
+    Set wsResults = ThisWorkbook.Sheets.Add
+    wsResults.Name = "Results"
+
+    ' Initialize results row
+    resultsRow = 2
+
+    ' Iterate through rows in Source sheet
+    For Each sourceRow In wsSource.Rows
+        If sourceRow.Row > 1 And sourceRow.Row <= lastRowSource Then ' Skip header row
+            matchFound = False
+            ' Find the corresponding row in Comparison sheet based on the unique column value
+            For Each comparisonRow In wsComparison.Rows
+                If comparisonRow.Row > 1 And comparisonRow.Row <= lastRowComparison Then ' Skip header row
+                    If wsSource.Cells(sourceRow.Row, uniqueColIndexSource).Value = wsComparison.Cells(comparisonRow.Row, uniqueColIndexComparison).Value Then
+                        matchFound = True
+                        ' Compare columns and highlight cells
+                        For Each colSource In wsSource.Rows(1).Cells
+                            If colSource.Value <> "" Then
+                                Set colComparison = wsComparison.Rows(1).Find(What:=colSource.Value, LookIn:=xlValues, LookAt:=xlWhole)
+                                If Not colComparison Is Nothing Then
+                                    columnsCompared = columnsCompared + 1
+                                    If wsSource.Cells(sourceRow.Row, colSource.Column).Value = wsComparison.Cells(comparisonRow.Row, colComparison.Column).Value Then
+                                        wsSource.Cells(sourceRow.Row, colSource.Column).Interior.Color = RGB(200, 200, 200) ' Gray fill
+                                        greenFonts = greenFonts + 1
+                                    ElseIf wsSource.Cells(sourceRow.Row, colSource.Column).Value <> "" Then
+                                        wsSource.Cells(sourceRow.Row, colSource.Column).Interior.Color = RGB(255, 0, 0) ' Red fill
+                                        redHighlights = redHighlights + 1
+                                        ' Add red highlight details to Results sheet NEED TO CHANGE HERE!!!
+                                  '      wsResults.Cells(resultsRow, 2).Value = wsSource.Cells(sourceRow.Row, uniqueColIndexSource).Value
+                                   '     wsResults.Cells(resultsRow, 3).Value = wsComparison.Cells(comparisonRow.Row, uniqueColIndexComparison).Value
+                                    '    wsResults.Cells(resultsRow, 4).Value = wsSource.Cells(sourceRow.Row, colSource.Column).Value
+                                     '   wsResults.Cells(resultsRow, 5).Value = wsComparison.Cells(comparisonRow.Row, colComparison.Column).Value
+                                        resultsRow = resultsRow + 1
+                                    End If
+                                End If
+                            End If
+                        Next colSource
+                        Exit For
+                    End If
+                End If
+            Next comparisonRow
+            ' If no match found, highlight the entire row in red
+            If Not matchFound Then
+                For Each colSource In wsSource.Rows(1).Cells
+                    If colSource.Value <> "" Then
+                        wsSource.Cells(sourceRow.Row, colSource.Column).Interior.Color = RGB(255, 0, 0) ' Red fill
+                        redHighlights = redHighlights + 1
+                        ' Add red highlight details to Results sheet
+                        wsResults.Cells(resultsRow, 2).Value = wsSource.Cells(sourceRow.Row, uniqueColIndexSource).Value
+                        wsResults.Cells(resultsRow, 3).Value = "No Match"
+                        wsResults.Cells(resultsRow, 4).Value = wsSource.Cells(sourceRow.Row, colSource.Column).Value
+                        wsResults.Cells(resultsRow, 5).Value = "No Match"
+                        resultsRow = resultsRow + 1
+                    End If
+                Next colSource
+            End If
+        End If
+    Next sourceRow
+
+    ' End timer and calculate total time taken
+    endTime = Now
+    totalTimeTaken = (endTime - startTime) * 86400 ' Convert to seconds
+
+    ' Display summary in the Results sheet
+    With wsResults
+        .Cells(2, 2).Value = "Total records processed:"
+        .Cells(2, 3).Value = lastRowSource - 1
+        .Cells(3, 2).Value = "Columns compared:"
+        .Cells(3, 3).Value = columnsCompared
+        .Cells(4, 2).Value = "Red highlights:"
+        .Cells(4, 3).Value = redHighlights
+        .Cells(5, 2).Value = "Green fonts:"
+        .Cells(5, 3).Value = greenFonts
+        .Cells(6, 2).Value = "Total time taken (seconds):"
+        .Cells(6, 3).Value = totalTimeTaken
+
+        ' Autoformat the cells
+        .Columns("B:E").AutoFit
+        .Range("B2:C6").Borders.LineStyle = xlContinuous
+        .Range("B2:C6").Interior.Color = RGB(220, 230, 241)
+        .Range("B2:C2").Font.Bold = True
+        '.Range("E2:E" & resultsRow - 1).Borders.LineStyle = xlContinuous
+     '   .Range("E9:E" & resultsRow - 1).Interior.Color = RGB(255, 255, 204)
+    End With
+    resultsRow = 0
+    ' Add red-highlighted rows from source and comparison sheets with a space in between
+    resultsRow = resultsRow + 2
+    wsResults.Cells(resultsRow, 6).Value = "Red-highlighted rows from " & sourceSheetName & " and " & comparisonSheetName
+    resultsRow = resultsRow + 1
+
+    For Each sourceRow In wsSource.Rows
+        If sourceRow.Row > 1 And sourceRow.Row <= lastRowSource Then ' Skip header row
+            matchFound = False
+            ' Find the corresponding row in Comparison sheet based on the unique column value
+            For Each comparisonRow In wsComparison.Rows
+                If comparisonRow.Row > 1 And comparisonRow.Row <= lastRowComparison Then ' Skip header row
+                    If wsSource.Cells(sourceRow.Row, uniqueColIndexSource).Value = wsComparison.Cells(comparisonRow.Row, uniqueColIndexComparison).Value Then
+                        matchFound = True
+                        ' Compare columns and highlight cells
+                        For Each colSource In wsSource.Rows(1).Cells
+                            If colSource.Value <> "" Then
+                                                                Set colComparison = wsComparison.Rows(1).Find(What:=colSource.Value, LookIn:=xlValues, LookAt:=xlWhole)
+                                If Not colComparison Is Nothing Then
+                                    If wsSource.Cells(sourceRow.Row, colSource.Column).Value <> wsComparison.Cells(comparisonRow.Row, colComparison.Column).Value Then
+                                        ' Output the differing rows to results
+                                        wsResults.Cells(resultsRow, 6).Value = "Source: " & wsSource.Cells(sourceRow.Row, uniqueColIndexSource).Value
+                                        wsResults.Cells(resultsRow, 7).Value = colSource.Value
+                                        wsResults.Cells(resultsRow, 8).Value = wsSource.Cells(sourceRow.Row, colSource.Column).Value
+                                        resultsRow = resultsRow + 1
+
+                                        wsResults.Cells(resultsRow, 6).Value = "Comparison: " & wsComparison.Cells(comparisonRow.Row, uniqueColIndexComparison).Value
+                                        wsResults.Cells(resultsRow, 7).Value = colSource.Value
+                                        wsResults.Cells(resultsRow, 8).Value = wsComparison.Cells(comparisonRow.Row, colComparison.Column).Value
+                                        resultsRow = resultsRow + 2 ' Add space between entries
+                                    End If
+                                End If
+                            End If
+                        Next colSource
+                        Exit For
+                    End If
+                End If
+            Next comparisonRow
+        End If
+    Next sourceRow
+
+    ' Final formatting for visibility
+    With wsResults
+        .Range("B1:C1").HorizontalAlignment = xlCenterAcrossSelection
+        .Range("B1").Value = "Comparison Results Summary"
+        .Range("B1").Font.Bold = True
+        .Range("B1").Font.Size = 12
+        .Range("B1").HorizontalAlignment = xlCenter
+        .Range("B1:C1").Interior.Color = RGB(141, 180, 226)
+        .Rows("1:1").RowHeight = 25
+        .Columns("B:K").AutoFit
+    End With
+
+    MsgBox "Comparison complete! Check the 'Results' sheet for details.", vbInformation, "Done"
+
+End Sub
+
+
