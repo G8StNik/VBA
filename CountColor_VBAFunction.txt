@@ -3,6 +3,8 @@ Option Explicit
 Function CountColor(rng_Ref as Range, rng_Data as Range) as Long
 
 Dim cell as Range
+' Add this to make the function update when sheet is recalculated
+Application.Volatile
 
 For each cell in rng_Data
 	If cell.Interior.color = rng_Ref.Cells(1,1).Interior.Color then
@@ -11,3 +13,8 @@ For each cell in rng_Data
 Next Cell
 
 End Function
+
+'If you want to have a button
+Sub Refresh_Button()
+	ActiveSheet.Calculate
+End Sub
