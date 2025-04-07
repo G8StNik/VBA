@@ -1,0 +1,13 @@
+Option Explicit
+
+Function CountColor(rng_Ref as Range, rng_Data as Range) as Long
+
+Dim cell as Range
+
+For each cell in rng_Data
+	If cell.Interior.color = rng_Ref.Cells(1,1).Interior.Color then
+		CountColor = CountColor +1
+	End If
+Next Cell
+
+End Function
